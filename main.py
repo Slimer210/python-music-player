@@ -2,18 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-8/12/2020
+10/12/2020
 Debug:
-[] Volume Slider Connection
-[abandoned] Userpath
-[] Volume slider start from 0 (p.s. of course it needs to start from zero lol)
+[] Music Playing Logic
 
-Features:
-[x] Music length
-[x(half)] Control With Pc Keyboard Bindings
-[x] Play/Pause Binding
-[x] Brand new UI
-[x] Topbar icon
+es:
+[x] Core modification (CRITICAL) (p.s demolished by an anynymous people lol)	
+[] Now Playing GUI 
 
 """
 
@@ -23,11 +18,15 @@ import getpass #why you want to put this lol
 from pygame import mixer #for music playing also
 from tkinter import * #the most important module in the world
 from tkinter import filedialog #for handling file dialog
+from tkinter import messagebox #messagebox
 import os #for handling path stuff
 import time #for the timer
 from custom_ttkthemes import ThemedTk #for the music progress slider
 import tkinter.ttk as ttk #the second important module in the world
 import re #for handling string stuff
+import mutagen #for getting mp3 metadata
+from mutagen.mp3 import MP3 #mp3 extension
+from tkinter.messagebox import askokcancel #for prompt message box
 
 class MusicPlayer(ThemedTk):
 
@@ -38,12 +37,14 @@ class MusicPlayer(ThemedTk):
 		pygame.init()
 		mixer.init()
 
-		#winddow layout initialization
+		#window layout initialization
 		self.resizable(False, False)
-		self.title('Slimer Music Player')
+		self.title('Pytone')
 		self.configure(background='grey22')
-		self.geometry('800x400')
-		self.iconbitmap('assets/icon.ico')
+		self.geometry('800x450')
+		self.iconbitmap('icon.ico')
+		self.protocol("WM_DELETE_WINDOW", self.ask_quit)
+
 		self.style = ttk.Style()
 		self.style.configure('TButton', background='grey22')
 		self.style.configure('TScale', background='grey22')
@@ -69,10 +70,15 @@ class MusicPlayer(ThemedTk):
 		self.shuffle_icon_active = PhotoImage(file='assets/shuffle_active.png')
 		self.skip_back_icon_active = PhotoImage(file='assets/skip-back_active.png')
 		self.skip_forward_icon_active = PhotoImage(file='assets/skip-forward_active.png')
+		self.browse_file_icon = PhotoImage(file='assets/browse-file.png')
+		self.browse_file_icon_active = PhotoImage(file='assets/browse-file_active.png')
 
 		#variable initialization
 		self.songstatus=StringVar()
 		self.v = DoubleVar()
+		self.currentsong = None
+		self.pauseonly = False
+		self.volumeslider_shown = False
 
 		#post initialization
 		self._widget()
@@ -81,16 +87,19 @@ class MusicPlayer(ThemedTk):
 
 	def _widget(self):
 		#widget setup
-		self.play_pause_button = Button(self, image=self.pause_icon, command=self.play_pause, takefocus=False, relief=FLAT, bg='grey22', activebackground='grey22')
-		self.VolumeSlider = Scale(self, bg="grey10",fg="white", variable=self.v, from_ = 0,to = 100, orient = HORIZONTAL, command=self.setvolume) 
-		self.music_player_scale = ttk.Scale(self, orient=HORIZONTAL)
-		self.volume_button = Button(self, image=self.volume_max_icon, relief=FLAT, bg='grey22', activebackground='grey22')
+		self.play_pause_button = Button(self, image=self.play_icon, command=self.play_pause, takefocus=False, relief=FLAT, bg='grey22', activebackground='grey22')
+		self.VolumeSlider = ttk.Scale(self, variable=self.v, from_ = 0,to = 100, orient = HORIZONTAL, command=self.setvolume,) 
+		self.music_player_scale = ttk.Scale(self, orient=HORIZONTAL,)
+		self.volume_button = Button(self, image=self.volume_max_icon, relief=FLAT, bg='grey22', activebackground='grey22',command=self.togglevolume)
 		self.progress_label_1 = Label(self, text='00:00', bg='grey22', fg='white')
 		self.progress_label_2 = Label(self, text='00:00', bg='grey22', fg='white')
 		self.repeat_button = Button(self, image=self.repeat_icon, bg='grey22', relief=FLAT, activebackground='grey22')
 		self.shuffle_button = Button(self, image=self.shuffle_icon, bg='grey22', relief=FLAT, activebackground='grey22')
 		self.last_song_button = Button(self, image=self.skip_back_icon, bg='grey22', relief=FLAT, activebackground='grey22')
 		self.next_song_button = Button(self, image=self.skip_forward_icon, bg='grey22', relief=FLAT, activebackground='grey22')
+		self.playlist=Listbox(self, selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=65,height=11)
+		self.browse_button= Button(self, bg='grey22',fg='grey92',activebackground='grey22',image=self.browse_file_icon, command=self._musicpath, relief=FLAT)
+		self.pathname=Label(self, bg='grey22',fg='white', font=('arial',10))		
 
 	def _config(self):
 		#variable setup
@@ -103,6 +112,17 @@ class MusicPlayer(ThemedTk):
 		self.bind('<Leave>', self._button_leave)
 		self.bind('<space>', self.play_pause)
 
+	def togglevolume(self):
+		#toggle volume slider
+		if self.volumeslider_shown == False:
+			self.VolumeSlider.place(relx=0.87, rely=0.85)
+			self.volumeslider_shown = True
+		else:
+			self.VolumeSlider.pack_forget()
+			self.volumeslider_shown = False
+
+		
+
 	def _layout(self):
 		#widget placement
 		self.play_pause_button.place(relx=0.5, rely=0.85, anchor=CENTER)
@@ -114,8 +134,10 @@ class MusicPlayer(ThemedTk):
 		self.last_song_button.place(relx=0.45, rely=0.85, anchor=CENTER)
 		self.next_song_button.place(relx=0.55, rely=0.85, anchor=CENTER)
 		self.volume_button.place(relx=0.92, rely=0.91)
+		self.playlist.place(relx=0.01, rely=0.10)
+		self.browse_button.place(relx=0.94, rely=0.01)
+		self.pathname.place(relx=0.01, rely=0.04) 
 
-	#button hover in animation
 	def _button_hover(self, event):
 		if type(event.widget) == Button:
 			exec('event.widget.config(image=self.'+re.search(r'assets/(.*?)\.png', root.call(event.widget.cget('image'), 'cget', '-file')).group(1).replace('-', '_')+'_icon_active)')
@@ -130,19 +152,59 @@ class MusicPlayer(ThemedTk):
 		if type(event.widget) == Button:
 			event.widget.config(relief=FLAT)
 
-	#music play and pause control
+	#music play and pause area
 	def play_pause(self, *args):
-		self.play_pause_button.config(image=self.play_icon if self.play_pause_button['image']==str(self.pause_icon) else self.pause_icon)
-		if self.play_icon['image'] == str(self.pause_icon):
-			pass #write your code here
+
+		#loading bay
+		self.currentsong=self.playlist.get(ACTIVE)
+		try:
+			mixer.music.load(self.currentsong)
+		except pygame.error:
+			print("Bruh wrong format")
+			mixer.music.unload()
+			messagebox.showerror(title="ERROR", message="Invalid Music Format!")
+		
+
+		#play-pause logic
+		if self.play_pause_button['image'] == str(self.play_icon_active):
+			self.play_pause_button.config(image=self.pause_icon_active)
+			mixer.music.play()
+			#play here
 		else:
-			pass #write your code here
+			self.play_pause_button.config(image=self.play_icon_active)
+			mixer.music.pause()
+			#pause here
 
 	#volume control
 	def setvolume(self, event):
-		pass #also write your code here
+		self.volume = self.VolumeSlider.get()
+		self.volumed = self.volume/100+0.00
+		mixer.music.set_volume(self.volumed) #also write your code here 
 
-#call the class and run the code and you're good to go
+
+	def _musicpath(self):
+		#playlist Setup with initialization
+
+		path = filedialog.askdirectory()
+		self.playlist.delete(0,'end')
+		try:
+			os.chdir(path)
+			songs=os.listdir()
+			self.pathname.config(text = 'Selected path: ' + path) 
+			for s in songs:
+				self.playlist.insert(END,s)
+		except OSError:
+			self.pathname.config(text = 'Please choose a path...')
+
+
+	def ask_quit(self):
+		if mixer.music.get_busy() == False:
+			root.destroy()
+		elif askokcancel("Exit", "Stop Music?"):
+			mixer.music.stop()
+			root.destroy()
+
 if __name__ == '__main__':
+
 	root = MusicPlayer()
 	root.mainloop()

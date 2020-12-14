@@ -14,8 +14,9 @@ pygame
 mutagen
 
 datetime
+
+Updates
 =======================
-Updates:
 alpha v0.1 - No updates
 
 alpha v0.2 - Volume Slider

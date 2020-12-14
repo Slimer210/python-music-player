@@ -1,5 +1,5 @@
 # python-music-player
-This is my very first project! It is working fine but I will make some changes later.
+This is my very first project! You can use this player to play mp3 and flac files. More extension will added.
 --------------------------------------------------------------------------------------------------
 Python Music Player
 ===================

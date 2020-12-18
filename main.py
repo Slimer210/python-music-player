@@ -2,32 +2,34 @@
 # -*- coding: utf-8 -*-
 
 """
-8/12/2020
+15/12/2020
 Debug:
-[] Volume Slider Connection
-[abandoned] Userpath
-[] Volume slider start from 0 (p.s. of course it needs to start from zero lol)
+[] n/a
 
-Features:
-[x] Music length
-[x(half)] Control With Pc Keyboard Bindings
-[x] Play/Pause Binding
-[x] Brand new UI
-[x] Topbar icon
+es:
+[] Now Playing Button
+[] Now Playing GUI 
 
 """
 
 #lib import
-import pygame #for music playing
-import getpass #why you want to put this lol
-from pygame import mixer #for music playing also
+import pygame #Music player core
+from pygame import mixer #Music player core with playlist binding
 from tkinter import * #the most important module in the world
 from tkinter import filedialog #for handling file dialog
+from tkinter import messagebox #for handling messagebox
+from tkinter.messagebox import askokcancel #for prompt ok-cancel message box
 import os #for handling path stuff
 import time #for the timer
 from custom_ttkthemes import ThemedTk #for the music progress slider
 import tkinter.ttk as ttk #the second important module in the world
 import re #for handling string stuff
+import mutagen #for getting mp3 metadata
+from mutagen.mp3 import MP3 #mp3 extension
+from mutagen.flac import FLAC #flac extension
+from mutagen.wave import WAVE #ogg extension
+import datetime #actually its use to get song length
+from datetime import time #I mentioned above
 
 class MusicPlayer(ThemedTk):
 
@@ -37,13 +39,17 @@ class MusicPlayer(ThemedTk):
 		super(MusicPlayer, self).__init__(theme='equilux')
 		pygame.init()
 		mixer.init()
+		SONG_END = pygame.USEREVENT + 1
+		pygame.mixer.music.set_endevent(SONG_END)
 
-		#winddow layout initialization
+		#window layout initialization
 		self.resizable(False, False)
-		self.title('Slimer Music Player')
+		self.title('Pytone v1.1') #1.1 release
 		self.configure(background='grey22')
-		self.geometry('800x400')
-		self.iconbitmap('assets/icon.ico')
+		self.geometry('1000x600')
+		self.iconbitmap('icon.ico')
+		self.protocol("WM_DELETE_WINDOW", self.ask_quit)
+
 		self.style = ttk.Style()
 		self.style.configure('TButton', background='grey22')
 		self.style.configure('TScale', background='grey22')
@@ -69,28 +75,76 @@ class MusicPlayer(ThemedTk):
 		self.shuffle_icon_active = PhotoImage(file='assets/shuffle_active.png')
 		self.skip_back_icon_active = PhotoImage(file='assets/skip-back_active.png')
 		self.skip_forward_icon_active = PhotoImage(file='assets/skip-forward_active.png')
-
+		self.browse_file_icon = PhotoImage(file='assets/browse-file.png')
+		self.browse_file_icon_active = PhotoImage(file='assets/browse-file_active.png')
+		self.explorer_icon=PhotoImage(file='assets/explorer.png')
+		self.explorer_icon_active=PhotoImage(file='assets/explorer_active.png')
+		self.music_icon=PhotoImage(file='assets/music.png')
+		self.music_icon_active=PhotoImage(file='assets/music_active.png')
+		self.mute_icon=PhotoImage(file='assets/mute.png')
+		self.mute_icon_active=PhotoImage(file='assets/mute_active.png')
 		#variable initialization
 		self.songstatus=StringVar()
 		self.v = DoubleVar()
+		self.currentsong = None
+		self.pauseonly = False
 
 		#post initialization
 		self._widget()
 		self._config()
 		self._layout()
+		self.musicsliderplace()
 
 	def _widget(self):
 		#widget setup
-		self.play_pause_button = Button(self, image=self.pause_icon, command=self.play_pause, takefocus=False, relief=FLAT, bg='grey22', activebackground='grey22')
-		self.VolumeSlider = Scale(self, bg="grey10",fg="white", variable=self.v, from_ = 0,to = 100, orient = HORIZONTAL, command=self.setvolume) 
-		self.music_player_scale = ttk.Scale(self, orient=HORIZONTAL)
-		self.volume_button = Button(self, image=self.volume_max_icon, relief=FLAT, bg='grey22', activebackground='grey22')
+		self.play_pause_button = Button(self, image=self.play_icon, command=self.play_pause, takefocus=False, relief=FLAT, bg='grey22', activebackground='grey22')
+		self.VolumeSlider = ttk.Scale(self, variable=self.v, from_ = 0,to = 100, orient = HORIZONTAL, command=self.setvolume) 
+		self.music_player_scale = ttk.Scale(self, orient=HORIZONTAL,command=self.musicsliderset)
+		self.volume_button = Button(self, image=self.volume_max_icon, relief=FLAT, bg='grey22', activebackground='grey22', command=self.togglemute)
 		self.progress_label_1 = Label(self, text='00:00', bg='grey22', fg='white')
 		self.progress_label_2 = Label(self, text='00:00', bg='grey22', fg='white')
-		self.repeat_button = Button(self, image=self.repeat_icon, bg='grey22', relief=FLAT, activebackground='grey22')
+		self.repeat_button = Button(self, image=self.repeat_icon, bg='grey22', relief=FLAT, activebackground='grey22',command=self.loopsong)
 		self.shuffle_button = Button(self, image=self.shuffle_icon, bg='grey22', relief=FLAT, activebackground='grey22')
-		self.last_song_button = Button(self, image=self.skip_back_icon, bg='grey22', relief=FLAT, activebackground='grey22')
-		self.next_song_button = Button(self, image=self.skip_forward_icon, bg='grey22', relief=FLAT, activebackground='grey22')
+		self.last_song_button = Button(self, image=self.skip_back_icon, bg='grey22', relief=FLAT, activebackground='grey22',command=self.previous_song)
+		self.next_song_button = Button(self, image=self.skip_forward_icon, bg='grey22', relief=FLAT, activebackground='grey22', command=self.next_song)
+		self.playlist=Listbox(self, selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=82,height=15,selectbackground="grey40", activestyle=None)
+		self.browse_button= Button(self, bg='grey30',fg='grey92',activebackground='grey70',image=self.browse_file_icon, command=self._musicpath, relief=FLAT)
+		self.pathname=Label(self, bg='grey22',fg='white', font=('arial',10))	
+		self.pathtoggle=Button(self, image=self.explorer_icon, bg='grey22', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
+		self.nowmusictoggle=Button(self, image=self.music_icon, bg='grey30', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
+		self.currentvolume=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='100')
+		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
+		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
+		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
+		#widget binding
+		self.playlist.bind('<Button-1>', self.playlistclick)	
+		self.playlist.bind('<Double-Button-1>', self.playlistdoubleclick)
+
+	def _layout(self):
+		#widget placement
+		self.play_pause_button.place(relx=0.5, rely=0.85, anchor=CENTER)
+		self.repeat_button.place(relx=0.4, rely=0.85, anchor=CENTER)
+		#self.shuffle_button.place(relx=0.6, rely=0.85, anchor=CENTER)
+		self.music_player_scale.place(relx=0.5, rely=0.95, width=500, anchor=CENTER)
+		self.progress_label_1.place(relx=0.20, rely=0.93)
+		self.progress_label_2.place(relx=0.75, rely=0.93)
+		self.last_song_button.place(relx=0.45, rely=0.85, anchor=CENTER)
+		self.next_song_button.place(relx=0.55, rely=0.85, anchor=CENTER)
+		self.volume_button.place(relx=0.81, rely=0.845)
+		self.VolumeSlider.place(relx=0.85, rely=0.85)
+		self.pathtoggle.place(relx=0.0, rely=0.0)
+		self.nowmusictoggle.place(relx=0.5, rely=0.0)
+		self.currentvolume.place(relx=0.95, rely=0.85)
+
+	def playlistclick(self, event):
+		self.loadsong()
+
+
+	def playlistdoubleclick(self, event):
+		self.loadsong()
+		self.play_music()
+
+
 
 	def _config(self):
 		#variable setup
@@ -103,19 +157,57 @@ class MusicPlayer(ThemedTk):
 		self.bind('<Leave>', self._button_leave)
 		self.bind('<space>', self.play_pause)
 
-	def _layout(self):
-		#widget placement
-		self.play_pause_button.place(relx=0.5, rely=0.85, anchor=CENTER)
-		self.repeat_button.place(relx=0.4, rely=0.85, anchor=CENTER)
-		self.shuffle_button.place(relx=0.6, rely=0.85, anchor=CENTER)
-		self.music_player_scale.place(relx=0.5, rely=0.95, width=500, anchor=CENTER)
-		self.progress_label_1.place(relx=0.12, rely=0.915)
-		self.progress_label_2.place(relx=0.83, rely=0.915)
-		self.last_song_button.place(relx=0.45, rely=0.85, anchor=CENTER)
-		self.next_song_button.place(relx=0.55, rely=0.85, anchor=CENTER)
-		self.volume_button.place(relx=0.92, rely=0.91)
+	def toggleplaylist(self):
+		#toggle playlist and its accessories here
+		if self.playlist.winfo_ismapped() == True:
+			self.playlist.place_forget()
+			self.pathname.place_forget()
+			self.browse_button.place_forget()
+			self.pathtoggle.config(bg='grey22')
+			self.nowmusictoggle.config(bg='grey30')
+		else:
+			self.playlist.place(relx=0.01, rely=0.15)
+			self.pathname.place(relx=0.01, rely=0.10) 
+			self.browse_button.place(relx=0.96, rely=0.086)
+			self.pathtoggle.config(bg='grey30')
+			self.nowmusictoggle.config(bg='grey22')
 
-	#button hover in animation
+	def setmusiclength(self):
+		#important function on a player (also hard to do)
+		if self.currentsong.endswith('.mp3') == True:
+			self.song=MP3(self.currentsong)
+			self.songlength=self.song.info.length
+			self.songround=round(self.songlength)
+			self.songmins, self.songsecs= divmod(self.songround, 60)
+			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
+			self.music_player_scale.config(from_ = 0,to = self.songlength)
+
+		if self.currentsong.endswith('.flac') == True:
+			self.song=FLAC(self.currentsong)
+			self.songlength=self.song.info.length
+			self.songround=round(self.songlength)
+			self.songmins, self.songsecs= divmod(self.songround, 60)
+			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
+			self.music_player_scale.config(from_ = 0,to = self.songlength)
+
+		if self.currentsong.endswith('.ogg') == True:
+			self.song=WAVE(self.currentsong)
+			self.songlength=self.song.info.length
+			self.songround=round(self.songlength)
+			self.songmins, self.songsecs= divmod(self.songround, 60)
+			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
+			self.music_player_scale.config(from_ = 0,to = self.songlength)
+
+	def musicsliderset(self, *args):
+		#Also important as user need to choose where to play
+		self.userlength = self.music_player_scale.get()
+		print(self.userlength)
+		mixer.music.set_pos(self.userlength)
+
+	def musicsliderplace(self):
+		pass	
+
+
 	def _button_hover(self, event):
 		if type(event.widget) == Button:
 			exec('event.widget.config(image=self.'+re.search(r'assets/(.*?)\.png', root.call(event.widget.cget('image'), 'cget', '-file')).group(1).replace('-', '_')+'_icon_active)')
@@ -130,19 +222,141 @@ class MusicPlayer(ThemedTk):
 		if type(event.widget) == Button:
 			event.widget.config(relief=FLAT)
 
-	#music play and pause control
-	def play_pause(self, *args):
-		self.play_pause_button.config(image=self.play_icon if self.play_pause_button['image']==str(self.pause_icon) else self.pause_icon)
-		if self.play_icon['image'] == str(self.pause_icon):
-			pass #write your code here
+	#music play and pause area
+	def loadsong(self):
+		self.currentsong=self.playlist.get(ACTIVE)
+		#loading bay
+
+		try:
+			mixer.music.load(self.currentsong)
+			self.play_pause_button.config(image=self.pause_icon_active)
+			self.setmusiclength()
+		except pygame.error:
+			mixer.music.unload()
+			messagebox.showerror(title="ERROR", message="Invalid Music Format!")
+		
+	def play_music(self, *args):
+		mixer.music.play()
+		self.title('Pytone v1.1 - Playing '+self.currentsong)
+
+	def loopsong(self):
+		if self.repeat_button.cget('bg') == 'grey40':
+			pygame.mixer.music.play()
+			self.repeat_button.config(bg='grey22')
 		else:
-			pass #write your code here
+			pygame.mixer.music.play(-1)
+			self.repeat_button.config(bg='grey40')
+
+	def play_pause(self):
+		if self.play_pause_button['image'] == str(self.pause_icon_active):
+			mixer.music.pause()
+			self.play_pause_button.config(image=self.play_icon_active)
+		else:
+			mixer.music.unpause()
+			self.play_pause_button.config(image=self.pause_icon_active)
+
+	def next_song(self):
+		selection_indices = self.playlist.curselection()
+
+		# default next selection is the beginning
+		next_selection = 0
+
+		# make sure at least one item is selected
+		if len(selection_indices) > 0:
+			# Get the last selection, remember they are strings for some reason
+			# so convert to int
+			last_selection = int(selection_indices[-1])
+
+			# clear current selections
+			self.playlist.selection_clear(selection_indices)
+
+			# Make sure we're not at the last item
+			if last_selection < self.playlist.size() - 1:
+				next_selection = last_selection + 1
+
+		self.playlist.activate(next_selection)
+		self.playlist.selection_set(next_selection)
+		self.play_pause_button.config(image=self.pause_icon_active)
+		self.loadsong()
+		self.play_music()
+
+	def previous_song(self):
+		selection_indicesb = self.playlist.curselection()
+
+		# default next selection is the beginning
+		next_selectionb = 0
+
+		# make sure at least one item is selected
+		if len(selection_indicesb) > 0:
+			# Get the last selection, remember they are strings for some reason
+			# so convert to int
+			last_selectionb = int(selection_indicesb[-1])
+
+			# clear current selections
+			self.playlist.selection_clear(selection_indicesb)
+
+			# Make sure we're not at the last item
+			if last_selectionb < self.playlist.size() - 1:
+				next_selectionb = last_selectionb - 1
+
+		self.playlist.activate(next_selectionb)
+		self.playlist.selection_set(next_selectionb)
+		self.play_pause_button.config(image=self.pause_icon_active)
+		self.loadsong()
+		self.play_music()
+
 
 	#volume control
 	def setvolume(self, event):
-		pass #also write your code here
+		self.volume = self.VolumeSlider.get()
+		self.volumed = self.volume/100+0.00
+		mixer.music.set_volume(self.volumed) #also write your code here 
+		self.currentvolume.config(text=int(self.volume))
+		if self.volume <= 100:
+			self.volume_button.config(image=self.volume_max_icon)
 
-#call the class and run the code and you're good to go
+		if self.volume <= 70:
+			self.volume_button.config(image=self.volume_medium_icon)
+
+		if self.volume <= 40:
+			self.volume_button.config(image=self.volume_min_icon)	
+
+		if self.volume == 0:
+			self.volume_button.config(image=self.mute_icon)	
+
+	def togglemute(self):
+		if self.VolumeSlider.get() != 0:
+			#mute
+			self.VolumeSlider.set(0)
+		else:
+			#unmute
+			self.VolumeSlider.set(100)
+
+
+	def _musicpath(self):
+		#playlist Setup with initialization
+
+		path = filedialog.askdirectory()
+		self.playlist.delete(0,'end')
+		try:
+			os.chdir(path)
+			songs=os.listdir()
+			filteredsongs=filter(lambda x: x.endswith(('.mp3', '.flac', '.wav')), songs)
+			self.pathname.config(text = 'Selected path: ' + path) 
+			for s in filteredsongs:
+				self.playlist.insert(END,s)
+		except OSError:
+			self.pathname.config(text = 'Please choose a path...')
+
+
+	def ask_quit(self):
+		if mixer.music.get_busy() == False:
+			root.destroy()
+		elif askokcancel("Exit", "Stop Music?"):
+			mixer.music.stop()
+			root.destroy()
+
 if __name__ == '__main__':
+
 	root = MusicPlayer()
 	root.mainloop()

@@ -36,7 +36,6 @@ class MusicPlayer(ThemedTk):
 	def __init__(self, *args, **kwargs):
 
 		#initialization
-		print('Made by Slimer@2020')
 		super(MusicPlayer, self).__init__(theme='equilux')
 		pygame.init()
 		mixer.init()

@@ -21,15 +21,17 @@ from tkinter import messagebox #for handling messagebox
 from tkinter.messagebox import askokcancel #for prompt ok-cancel message box
 import os #for handling path stuff
 import time #for the timer
+import threading #multithreading
 from custom_ttkthemes import ThemedTk #for the music progress slider
 import tkinter.ttk as ttk #the second important module in the world
 import re #for handling string stuff
-import mutagen #for getting mp3 metadata
-from mutagen.mp3 import MP3 #mp3 extension
-from mutagen.flac import FLAC #flac extension
-from mutagen.wave import WAVE #ogg extension
-import datetime #actually its use to get song length
-from datetime import time #I mentioned above
+import mutagen #for getting mp3 data
+from mutagen.id3 import ID3 #Helps other 3 mutagen module get the song's ID3 metadata
+from mutagen.mp3 import MP3 #mp3 extension details
+from mutagen.flac import FLAC #flac extension details
+from mutagen.wave import WAVE #ogg extension details
+#import datetime #actually its use to get song length
+#from datetime import time #I mentioned above
 
 class MusicPlayer(ThemedTk):
 
@@ -114,14 +116,17 @@ class MusicPlayer(ThemedTk):
 		self.nowmusictoggle=Button(self, image=self.music_icon, bg='grey30', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
 		self.currentvolume=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='100')
 		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
-		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
-		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
+		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Artist: - ')
+		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Album: - ')
 		#widget binding
 		self.playlist.bind('<Button-1>', self.playlistclick)	
 		self.playlist.bind('<Double-Button-1>', self.playlistdoubleclick)
 
 	def _layout(self):
 		#widget placement
+		self.songname.place(relx=0.5, rely=0.4)
+		self.artistname.place(relx=0.5, rely=0.5)
+		self.albumname.place(relx=0.5, rely=0.6)
 		self.play_pause_button.place(relx=0.5, rely=0.85, anchor=CENTER)
 		self.repeat_button.place(relx=0.4, rely=0.85, anchor=CENTER)
 		#self.shuffle_button.place(relx=0.6, rely=0.85, anchor=CENTER)
@@ -136,6 +141,7 @@ class MusicPlayer(ThemedTk):
 		self.nowmusictoggle.place(relx=0.5, rely=0.0)
 		self.currentvolume.place(relx=0.95, rely=0.85)
 
+
 	def playlistclick(self, event):
 		self.loadsong()
 
@@ -144,6 +150,9 @@ class MusicPlayer(ThemedTk):
 		self.loadsong()
 		self.play_music()
 
+	def check_event(self):
+		pass
+			
 
 
 	def _config(self):
@@ -167,6 +176,7 @@ class MusicPlayer(ThemedTk):
 			self.nowmusictoggle.config(bg='grey30')
 		else:
 			self.playlist.place(relx=0.01, rely=0.15)
+			self.playlist.tkraise()
 			self.pathname.place(relx=0.01, rely=0.10) 
 			self.browse_button.place(relx=0.96, rely=0.086)
 			self.pathtoggle.config(bg='grey30')
@@ -176,19 +186,29 @@ class MusicPlayer(ThemedTk):
 		#important function on a player (also hard to do)
 		if self.currentsong.endswith('.mp3') == True:
 			self.song=MP3(self.currentsong)
+			self.songinfo=ID3(self.currentsong)
 			self.songlength=self.song.info.length
 			self.songround=round(self.songlength)
 			self.songmins, self.songsecs= divmod(self.songround, 60)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
 			self.music_player_scale.config(from_ = 0,to = self.songlength)
+			self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
+			self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
+			self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
+			
 
 		if self.currentsong.endswith('.flac') == True:
 			self.song=FLAC(self.currentsong)
+			self.songinfo=ID3(self.currentsong)
+			self.songpict = self.songinfo.get("APIC:").data
 			self.songlength=self.song.info.length
 			self.songround=round(self.songlength)
 			self.songmins, self.songsecs= divmod(self.songround, 60)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
 			self.music_player_scale.config(from_ = 0,to = self.songlength)
+			self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
+			self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
+			self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
 
 		if self.currentsong.endswith('.ogg') == True:
 			self.song=WAVE(self.currentsong)
@@ -209,9 +229,12 @@ class MusicPlayer(ThemedTk):
 
 
 	def _button_hover(self, event):
-		if type(event.widget) == Button:
-			exec('event.widget.config(image=self.'+re.search(r'assets/(.*?)\.png', root.call(event.widget.cget('image'), 'cget', '-file')).group(1).replace('-', '_')+'_icon_active)')
-
+		try:	
+			if type(event.widget) == Button:
+				exec('event.widget.config(image=self.'+re.search(r'assets/(.*?)\.png', root.call(event.widget.cget('image'), 'cget', '-file')).group(1).replace('-', '_')+'_icon_active)')
+		except AttributeError:
+			pass
+		
 	#button hover out animation
 	def _button_leave(self, event):
 		if type(event.widget) == Button:
@@ -238,6 +261,7 @@ class MusicPlayer(ThemedTk):
 	def play_music(self, *args):
 		mixer.music.play()
 		self.title('Pytone v1.1 - Playing '+self.currentsong)
+		self.check_event()
 
 	def loopsong(self):
 		if self.repeat_button.cget('bg') == 'grey40':
@@ -360,3 +384,4 @@ if __name__ == '__main__':
 
 	root = MusicPlayer()
 	root.mainloop()
+

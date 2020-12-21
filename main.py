@@ -2,13 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-15/12/2020
-Debug:
-[] n/a
-
-es:
-[] Now Playing Button
-[] Now Playing GUI 
+this project will pause for a while... the developers needs to take a break... 
+this project will continue at next year...
 
 """
 

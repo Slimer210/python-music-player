@@ -9,7 +9,7 @@ This is my very first project! It is working fine but I will make some changes l
 
 --------------------------------------------------------------------------------------------------
 
-# Module used:
+# Module used
 
 tkinter
 
@@ -21,7 +21,7 @@ mutagen
 
 datetime
 
-# Updates (alpha):
+# Updates (alpha)
 
 alpha v0.1 - No updates
 
@@ -29,7 +29,7 @@ alpha v0.2 - Volume Slider
 
 alpha v0.3 - bug fixes
 
-# Updates (releases):
+# Updates (releases)
 
 release v1.0 - 
 
@@ -50,3 +50,8 @@ release v1.2 -
 	Redesigned the main window
   
 	Some minor bug fix
+
+
+# Contributors
+
+Slimer210: Main module

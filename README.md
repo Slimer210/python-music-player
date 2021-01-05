@@ -1,12 +1,13 @@
 
-This is my very first project! It is working fine but I will make some changes later.
---------------------------------------------------------------------------------------------------
+
 Python Music Player
 ===================
 
 A music player with better GUI
 
 This is my very first project! It is working fine but I will make some changes later.
+
+--------------------------------------------------------------------------------------------------
 
 # Module used:
 

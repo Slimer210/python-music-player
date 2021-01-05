@@ -2,13 +2,19 @@
 # -*- coding: utf-8 -*-
 
 """
-this project will pause for a while... the developers needs to take a break... 
-this project will continue at next year...
+PyTone 1.2
+Finally pytone 1.2 is out and I have fix some bugs included:
+	Number collapse when song length is one numbered (4:8-->04:08)
+	Slider woking now but user still cannot set the length because some bug
+	All numeric system working
+	Redesigned the main window
+	Some minor bug fix
 
 """
 
 #lib import
 import pygame #Music player core
+import sys #sometimes it can use to fix some weird bug
 from pygame import mixer #Music player core with playlist binding
 from tkinter import * #the most important module in the world
 from tkinter import filedialog #for handling file dialog
@@ -38,10 +44,12 @@ class MusicPlayer(ThemedTk):
 		mixer.init()
 		SONG_END = pygame.USEREVENT + 1
 		pygame.mixer.music.set_endevent(SONG_END)
+		self.automusicslider = threading.Thread(target=self.musicsliderplace)
+		
 
 		#window layout initialization
 		self.resizable(False, False)
-		self.title('Pytone v1.1') #1.1 release
+		self.title('Pytone v1.2') #1.2 release
 		self.configure(background='grey22')
 		self.geometry('1000x600')
 		self.iconbitmap('icon.ico')
@@ -80,17 +88,20 @@ class MusicPlayer(ThemedTk):
 		self.music_icon_active=PhotoImage(file='assets/music_active.png')
 		self.mute_icon=PhotoImage(file='assets/mute.png')
 		self.mute_icon_active=PhotoImage(file='assets/mute_active.png')
+		self.disc_icon=PhotoImage(file='assets/disc.png')
+		self.disc_icon_active=PhotoImage(file='assets/disc_active.png')
 		#variable initialization
 		self.songstatus=StringVar()
 		self.v = DoubleVar()
 		self.currentsong = None
 		self.pauseonly = False
+		self.songlength=1
 
 		#post initialization
 		self._widget()
 		self._config()
 		self._layout()
-		self.musicsliderplace()
+
 
 	def _widget(self):
 		#widget setup
@@ -104,24 +115,27 @@ class MusicPlayer(ThemedTk):
 		self.shuffle_button = Button(self, image=self.shuffle_icon, bg='grey22', relief=FLAT, activebackground='grey22')
 		self.last_song_button = Button(self, image=self.skip_back_icon, bg='grey22', relief=FLAT, activebackground='grey22',command=self.previous_song)
 		self.next_song_button = Button(self, image=self.skip_forward_icon, bg='grey22', relief=FLAT, activebackground='grey22', command=self.next_song)
-		self.playlist=Listbox(self, selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=82,height=15,selectbackground="grey40", activestyle=None)
+		self.playlist=Listbox(self, relief=FLAT,selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=82,height=15,selectbackground="grey40", activestyle=None)
 		self.browse_button= Button(self, bg='grey30',fg='grey92',activebackground='grey70',image=self.browse_file_icon, command=self._musicpath, relief=FLAT)
 		self.pathname=Label(self, bg='grey22',fg='white', font=('arial',10))	
 		self.pathtoggle=Button(self, image=self.explorer_icon, bg='grey22', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
 		self.nowmusictoggle=Button(self, image=self.music_icon, bg='grey30', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
 		self.currentvolume=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='100')
-		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ')
-		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Artist: - ')
-		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Album: - ')
+		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ',font=('Arial',13))
+		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Artist: - ',font=('Arial',13))
+		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Album: - ',font=('Arial',13))
+		self.discicon=Button(image=self.disc_icon, bg='grey22', relief=FLAT)
 		#widget binding
 		self.playlist.bind('<Button-1>', self.playlistclick)	
 		self.playlist.bind('<Double-Button-1>', self.playlistdoubleclick)
+		#24/7 threading
+		self.automusicslider.start()
 
 	def _layout(self):
 		#widget placement
-		self.songname.place(relx=0.5, rely=0.4)
-		self.artistname.place(relx=0.5, rely=0.5)
-		self.albumname.place(relx=0.5, rely=0.6)
+		self.songname.place(relx=0.5, rely=0.35)
+		self.artistname.place(relx=0.5, rely=0.45)
+		self.albumname.place(relx=0.5, rely=0.55)
 		self.play_pause_button.place(relx=0.5, rely=0.85, anchor=CENTER)
 		self.repeat_button.place(relx=0.4, rely=0.85, anchor=CENTER)
 		#self.shuffle_button.place(relx=0.6, rely=0.85, anchor=CENTER)
@@ -135,6 +149,7 @@ class MusicPlayer(ThemedTk):
 		self.pathtoggle.place(relx=0.0, rely=0.0)
 		self.nowmusictoggle.place(relx=0.5, rely=0.0)
 		self.currentvolume.place(relx=0.95, rely=0.85)
+		self.discicon.place(relx=0.15, rely=0.25)
 
 
 	def playlistclick(self, event):
@@ -185,44 +200,59 @@ class MusicPlayer(ThemedTk):
 			self.songlength=self.song.info.length
 			self.songround=round(self.songlength)
 			self.songmins, self.songsecs= divmod(self.songround, 60)
+			self.songmins=str(self.songmins).zfill(2)
+			self.songsecs=str(self.songsecs).zfill(2)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
-			self.music_player_scale.config(from_ = 0,to = self.songlength)
 			self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
 			self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
 			self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
 			
 
 		if self.currentsong.endswith('.flac') == True:
-			self.song=FLAC(self.currentsong)
-			self.songinfo=ID3(self.currentsong)
-			self.songpict = self.songinfo.get("APIC:").data
-			self.songlength=self.song.info.length
-			self.songround=round(self.songlength)
-			self.songmins, self.songsecs= divmod(self.songround, 60)
-			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
-			self.music_player_scale.config(from_ = 0,to = self.songlength)
-			self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
-			self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
-			self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
+			#self.song=FLAC(self.currentsong)
+			#self.songinfo=ID3(self.currentsong)
+			#self.songpict = self.songinfo.get("APIC:").data
+			#self.songlength=self.song.info.length
+			#self.songround=round(self.songlength)
+			#self.songmins, self.songsecs= divmod(self.songround, 60)
+			#self.songsecs=str(self.songsecs).zfill(2)
+			#self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
+			#self.music_player_scale.config(from_ = 0,to = self.songlength)
+			#self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
+			#self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
+			#self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
+			pass
 
 		if self.currentsong.endswith('.ogg') == True:
 			self.song=WAVE(self.currentsong)
 			self.songlength=self.song.info.length
 			self.songround=round(self.songlength)
 			self.songmins, self.songsecs= divmod(self.songround, 60)
+			self.songsecs=str(self.songsecs).zfill(2)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
-			self.music_player_scale.config(from_ = 0,to = self.songlength)
 
 	def musicsliderset(self, *args):
 		#Also important as user need to choose where to play
-		self.userlength = self.music_player_scale.get()
-		print(self.userlength)
-		mixer.music.set_pos(self.userlength)
-
+		#self.userlength = self.music_player_scale.get()
+		#print(self.userlength)
+		#mixer.music.set_pos(self.userlength)
+		pass
+	
 	def musicsliderplace(self):
-		pass	
+		for i in range(999999999):
+			self.currenttime = mixer.music.get_pos()
+			self.currenttime, self.currenttimemil=divmod(self.currenttime, 1000)
+			self.currentmin, self.currentsec = divmod(self.currenttime, 60)
+			self.currentmin=str(self.currentmin).zfill(2)
+			self.currentsec=str(self.currentsec).zfill(2)
+			self.progress_label_1.config(text=str(self.currentmin)+':'+str(self.currentsec))
+			if self.progress_label_1['text']=='-1:59':
+				self.progress_label_1.config(text='00:00')
+			self.currentsongpos=int(self.currenttime)/int(self.songlength)
+			self.music_player_scale.set(self.currentsongpos)
 
-
+			time.sleep(1)	
+	
 	def _button_hover(self, event):
 		try:	
 			if type(event.widget) == Button:
@@ -257,6 +287,7 @@ class MusicPlayer(ThemedTk):
 		mixer.music.play()
 		self.title('Pytone v1.1 - Playing '+self.currentsong)
 		self.check_event()
+		
 
 	def loopsong(self):
 		if self.repeat_button.cget('bg') == 'grey40':
@@ -360,7 +391,7 @@ class MusicPlayer(ThemedTk):
 		try:
 			os.chdir(path)
 			songs=os.listdir()
-			filteredsongs=filter(lambda x: x.endswith(('.mp3', '.flac', '.wav')), songs)
+			filteredsongs=filter(lambda x: x.endswith(('.mp3')), songs)
 			self.pathname.config(text = 'Selected path: ' + path) 
 			for s in filteredsongs:
 				self.playlist.insert(END,s)
@@ -371,9 +402,13 @@ class MusicPlayer(ThemedTk):
 	def ask_quit(self):
 		if mixer.music.get_busy() == False:
 			root.destroy()
+			
 		elif askokcancel("Exit", "Stop Music?"):
 			mixer.music.stop()
 			root.destroy()
+			
+	
+	
 
 if __name__ == '__main__':
 

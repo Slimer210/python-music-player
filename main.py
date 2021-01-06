@@ -103,6 +103,7 @@ class MusicPlayer(ThemedTk):
 		self._layout()
 
 
+
 	def _widget(self):
 		#widget setup
 		self.play_pause_button = Button(self, image=self.play_icon, command=self.play_pause, takefocus=False, relief=FLAT, bg='grey22', activebackground='grey22')
@@ -115,8 +116,8 @@ class MusicPlayer(ThemedTk):
 		self.shuffle_button = Button(self, image=self.shuffle_icon, bg='grey22', relief=FLAT, activebackground='grey22')
 		self.last_song_button = Button(self, image=self.skip_back_icon, bg='grey22', relief=FLAT, activebackground='grey22',command=self.previous_song)
 		self.next_song_button = Button(self, image=self.skip_forward_icon, bg='grey22', relief=FLAT, activebackground='grey22', command=self.next_song)
-		self.playlist=Listbox(self, relief=FLAT,selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=82,height=15,selectbackground="grey40", activestyle=None)
-		self.browse_button= Button(self, bg='grey30',fg='grey92',activebackground='grey70',image=self.browse_file_icon, command=self._musicpath, relief=FLAT)
+		self.playlist=Listbox(self, relief=FLAT,selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=82,height=15,selectbackground="grey40", activestyle='none')
+		self.browse_button= Button(self, bg='grey30',fg='grey92',activebackground='grey70',image=self.browse_file_icon, command=self.selectpath, relief=FLAT)
 		self.pathname=Label(self, bg='grey22',fg='white', font=('arial',10))	
 		self.pathtoggle=Button(self, image=self.explorer_icon, bg='grey22', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
 		self.nowmusictoggle=Button(self, image=self.music_icon, bg='grey30', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
@@ -383,9 +384,7 @@ class MusicPlayer(ThemedTk):
 			self.VolumeSlider.set(100)
 
 
-	def _musicpath(self):
-		#playlist Setup with initialization
-
+	def selectpath(self):
 		path = filedialog.askdirectory()
 		self.playlist.delete(0,'end')
 		try:
@@ -398,15 +397,15 @@ class MusicPlayer(ThemedTk):
 		except OSError:
 			self.pathname.config(text = 'Please choose a path...')
 
-
 	def ask_quit(self):
 		if mixer.music.get_busy() == False:
 			root.destroy()
+			os.system('taskkill /f /im python.exe')
 			
 		elif askokcancel("Exit", "Stop Music?"):
 			mixer.music.stop()
 			root.destroy()
-			
+			os.system('taskkill /f /im python.exe')
 	
 	
 

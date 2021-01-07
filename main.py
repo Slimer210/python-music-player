@@ -31,8 +31,6 @@ from mutagen.id3 import ID3 #Helps other 3 mutagen module get the song's ID3 met
 from mutagen.mp3 import MP3 #mp3 extension details
 from mutagen.flac import FLAC #flac extension details
 from mutagen.wave import WAVE #ogg extension details
-#import datetime #actually its use to get song length
-#from datetime import time #I mentioned above
 
 class MusicPlayer(ThemedTk):
 
@@ -42,14 +40,15 @@ class MusicPlayer(ThemedTk):
 		super(MusicPlayer, self).__init__(theme='equilux')
 		pygame.init()
 		mixer.init()
-		SONG_END = pygame.USEREVENT + 1
-		pygame.mixer.music.set_endevent(SONG_END)
+		MUSIC_END = pygame.USEREVENT + 1
+		pygame.mixer.music.set_endevent(MUSIC_END)
 		self.automusicslider = threading.Thread(target=self.musicsliderplace)
+		self.musicloop = threading.Thread(target=self.loopsong)
 		
 
 		#window layout initialization
 		self.resizable(False, False)
-		self.title('Pytone v1.2') #1.2 release
+		self.title('Pytone v1.3') #1.3 release
 		self.configure(background='grey22')
 		self.geometry('1000x600')
 		self.iconbitmap('icon.ico')
@@ -112,8 +111,8 @@ class MusicPlayer(ThemedTk):
 		self.volume_button = Button(self, image=self.volume_max_icon, relief=FLAT, bg='grey22', activebackground='grey22', command=self.togglemute)
 		self.progress_label_1 = Label(self, text='00:00', bg='grey22', fg='white')
 		self.progress_label_2 = Label(self, text='00:00', bg='grey22', fg='white')
-		self.repeat_button = Button(self, image=self.repeat_icon, bg='grey22', relief=FLAT, activebackground='grey22',command=self.loopsong)
-		self.shuffle_button = Button(self, image=self.shuffle_icon, bg='grey22', relief=FLAT, activebackground='grey22')
+		self.repeat_button = Button(self, image=self.repeat_icon, bg='grey22', relief=FLAT, activebackground='grey30',command=self.loopshuffletoggle)
+		self.shuffle_button = Button(self, image=self.shuffle_icon, bg='grey22', relief=FLAT, activebackground='grey30',command=self.loopshuffletoggle)
 		self.last_song_button = Button(self, image=self.skip_back_icon, bg='grey22', relief=FLAT, activebackground='grey22',command=self.previous_song)
 		self.next_song_button = Button(self, image=self.skip_forward_icon, bg='grey22', relief=FLAT, activebackground='grey22', command=self.next_song)
 		self.playlist=Listbox(self, relief=FLAT,selectmode=SINGLE,bg="grey20",fg="grey88",font=('Arial',13),width=82,height=15,selectbackground="grey40", activestyle='none')
@@ -131,6 +130,7 @@ class MusicPlayer(ThemedTk):
 		self.playlist.bind('<Double-Button-1>', self.playlistdoubleclick)
 		#24/7 threading
 		self.automusicslider.start()
+		self.musicloop.start()
 
 	def _layout(self):
 		#widget placement
@@ -159,6 +159,7 @@ class MusicPlayer(ThemedTk):
 
 	def playlistdoubleclick(self, event):
 		self.loadsong()
+		self.toggleplaylist()
 		self.play_music()
 
 	def check_event(self):
@@ -286,24 +287,34 @@ class MusicPlayer(ThemedTk):
 		
 	def play_music(self, *args):
 		mixer.music.play()
-		self.title('Pytone v1.1 - Playing '+self.currentsong)
+		self.title('Pytone v1.3 - Playing '+self.currentsong)
 		self.check_event()
+
+	def loopshuffletoggle(self):
+		if self.repeat_button.cget('bg') == 'grey50':
+			self.repeat_button.config(bg='grey22')
+		else:
+			self.repeat_button.config(bg='grey50')
 		
 
 	def loopsong(self):
-		if self.repeat_button.cget('bg') == 'grey40':
-			pygame.mixer.music.play()
-			self.repeat_button.config(bg='grey22')
-		else:
-			pygame.mixer.music.play(-1)
-			self.repeat_button.config(bg='grey40')
+		for i in range(99999999):
+			if pygame.mixer.music.get_busy() == False and self.repeat_button.cget('bg') == 'grey50':
+				pygame.mixer.music.play()
+			else:
+				for event in pygame.event.get():
+					if event.type == 'MUSIC_END':
+						print('music end event')
+			time.sleep(1)
 
 	def play_pause(self):
 		if self.play_pause_button['image'] == str(self.pause_icon_active):
 			mixer.music.pause()
+			self.title('Pytone v1.3 - Paused ')
 			self.play_pause_button.config(image=self.play_icon_active)
 		else:
 			mixer.music.unpause()
+			self.title('Pytone v1.3 - Playing '+self.currentsong)
 			self.play_pause_button.config(image=self.pause_icon_active)
 
 	def next_song(self):
@@ -390,7 +401,7 @@ class MusicPlayer(ThemedTk):
 		try:
 			os.chdir(path)
 			songs=os.listdir()
-			filteredsongs=filter(lambda x: x.endswith(('.mp3')), songs)
+			filteredsongs=filter(lambda x: x.endswith(('.mp3', '.wav')), songs)
 			self.pathname.config(text = 'Selected path: ' + path) 
 			for s in filteredsongs:
 				self.playlist.insert(END,s)

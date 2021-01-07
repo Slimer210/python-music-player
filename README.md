@@ -50,8 +50,15 @@ release v1.2 -
 	Redesigned the main window
   
 	Some minor bug fix
+	
+release v1.3
+
+	Loop added
+	
+	Auto switch to 'Now Plaing' when music selected and played
 
 
 # Contributors
 
-Slimer210: Main module
+Slimer210: Main module, GUI
+melvinchia3636: pull request - custom_ttkthemes

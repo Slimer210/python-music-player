@@ -121,22 +121,24 @@ class MusicPlayer(ThemedTk):
 		self.pathtoggle=Button(self, image=self.explorer_icon, bg='grey22', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
 		self.nowmusictoggle=Button(self, image=self.music_icon, bg='grey30', relief=FLAT, width=500, height=50, command=self.toggleplaylist)
 		self.currentvolume=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='100')
-		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Name: - ',font=('Arial',13))
-		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Artist: - ',font=('Arial',13))
-		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='Album: - ',font=('Arial',13))
-		self.discicon=Button(image=self.disc_icon, bg='grey22', relief=FLAT)
+		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='',font=('Arial',30, 'bold'))
+		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='',font=('Arial',13))
+		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='',font=('Arial',13))
+		self.discicon=Button(image=self.disc_icon, bg='grey30', relief=FLAT)
 		#widget binding
 		self.playlist.bind('<Button-1>', self.playlistclick)	
 		self.playlist.bind('<Double-Button-1>', self.playlistdoubleclick)
 		#24/7 threading
+		self.automusicslider.daemon = True
+		self.musicloop.daemon = True
 		self.automusicslider.start()
 		self.musicloop.start()
 
 	def _layout(self):
 		#widget placement
-		self.songname.place(relx=0.5, rely=0.35)
-		self.artistname.place(relx=0.5, rely=0.45)
-		self.albumname.place(relx=0.5, rely=0.55)
+		self.songname.place(relx=0.25, rely=0.47)
+		self.artistname.place(relx=0.25, rely=0.59)
+		self.albumname.place(relx=0.25, rely=0.67)
 		self.play_pause_button.place(relx=0.5, rely=0.85, anchor=CENTER)
 		self.repeat_button.place(relx=0.4, rely=0.85, anchor=CENTER)
 		#self.shuffle_button.place(relx=0.6, rely=0.85, anchor=CENTER)
@@ -150,7 +152,7 @@ class MusicPlayer(ThemedTk):
 		self.pathtoggle.place(relx=0.0, rely=0.0)
 		self.nowmusictoggle.place(relx=0.5, rely=0.0)
 		self.currentvolume.place(relx=0.95, rely=0.85)
-		self.discicon.place(relx=0.15, rely=0.25)
+		self.discicon.place(relx=0.04, rely=0.44)
 
 
 	def playlistclick(self, event):
@@ -205,25 +207,33 @@ class MusicPlayer(ThemedTk):
 			self.songmins=str(self.songmins).zfill(2)
 			self.songsecs=str(self.songsecs).zfill(2)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
-			self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
-			self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
-			self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
+			try:
+				self.songname.config(text=self.songinfo['TIT2'].text[0])
+				self.artistname.config(text=self.songinfo['TPE1'].text[0])
+				self.albumname.config(text=self.songinfo['TALB'].text[0])
+			except:
+				self.songname.config(text=self.currentsong)
+				self.artistname.config(text='failed to read metadata')
+				self.albumname.config(text='failed to read metadata')
 			
 
 		if self.currentsong.endswith('.flac') == True:
-			#self.song=FLAC(self.currentsong)
-			#self.songinfo=ID3(self.currentsong)
-			#self.songpict = self.songinfo.get("APIC:").data
-			#self.songlength=self.song.info.length
-			#self.songround=round(self.songlength)
-			#self.songmins, self.songsecs= divmod(self.songround, 60)
-			#self.songsecs=str(self.songsecs).zfill(2)
-			#self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
-			#self.music_player_scale.config(from_ = 0,to = self.songlength)
-			#self.songname.config(text='Song: ' + self.songinfo['TIT2'].text[0])
-			#self.artistname.config(text='Artist: ' + self.songinfo['TPE1'].text[0])
-			#self.albumname.config(text='Album: ' + self.songinfo['TALB'].text[0])
-			pass
+			self.song=FLAC(self.currentsong)
+			self.songlength=self.song.info.length
+			self.songround=round(self.songlength)
+			self.songmins, self.songsecs= divmod(self.songround, 60)
+			self.songmins=str(self.songmins).zfill(2)
+			self.songsecs=str(self.songsecs).zfill(2)
+			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
+			self.music_player_scale.config(from_ = 0,to = self.songlength)
+			try:
+				self.songname.config(text=self.song['TITLE'])
+				self.artistname.config(text=self.song['ARTIST'])
+				self.albumname.config(text=self.song['ALBUM'])
+			except:
+				self.songname.config(text=self.currentsong)
+				self.artistname.config(text='failed to read metadata')
+				self.albumname.config(text='failed to read metadata')			
 
 		if self.currentsong.endswith('.ogg') == True:
 			self.song=WAVE(self.currentsong)
@@ -251,6 +261,7 @@ class MusicPlayer(ThemedTk):
 			if self.progress_label_1['text']=='-1:59':
 				self.progress_label_1.config(text='00:00')
 			self.currentsongpos=int(self.currenttime)/int(self.songlength)
+			print(self.currentsongpos)
 			self.music_player_scale.set(self.currentsongpos)
 
 			time.sleep(1)	
@@ -302,9 +313,7 @@ class MusicPlayer(ThemedTk):
 			if pygame.mixer.music.get_busy() == False and self.repeat_button.cget('bg') == 'grey50':
 				pygame.mixer.music.play()
 			else:
-				for event in pygame.event.get():
-					if event.type == 'MUSIC_END':
-						print('music end event')
+				pass
 			time.sleep(1)
 
 	def play_pause(self):
@@ -401,7 +410,7 @@ class MusicPlayer(ThemedTk):
 		try:
 			os.chdir(path)
 			songs=os.listdir()
-			filteredsongs=filter(lambda x: x.endswith(('.mp3', '.wav')), songs)
+			filteredsongs=filter(lambda x: x.endswith(('.mp3', '.flac')), songs)
 			self.pathname.config(text = 'Selected path: ' + path) 
 			for s in filteredsongs:
 				self.playlist.insert(END,s)
@@ -411,13 +420,10 @@ class MusicPlayer(ThemedTk):
 	def ask_quit(self):
 		if mixer.music.get_busy() == False:
 			root.destroy()
-			os.system('taskkill /f /im python.exe')
 			
 		elif askokcancel("Exit", "Stop Music?"):
 			mixer.music.stop()
-			root.destroy()
-			os.system('taskkill /f /im python.exe')
-	
+			root.destroy()	
 	
 
 if __name__ == '__main__':

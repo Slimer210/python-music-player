@@ -57,6 +57,12 @@ release v1.3
 	
 	Auto switch to 'Now Plaing' when music selected and played
 
+release v1.4
+
+	Minor GUI updated
+	
+	FLAC supported
+
 
 # Contributors
 

@@ -63,8 +63,13 @@ release v1.4
 	
 	FLAC supported
 
+release v1.5
+
+	Click the disc icon can view full metadata
+
+	Music length slider bug fix
 
 # Contributors
 
 Slimer210: Main module, GUI
-melvinchia3636: pull request - custom_ttkthemes
+melvinchia3636: custom_ttkthemes(pull request)

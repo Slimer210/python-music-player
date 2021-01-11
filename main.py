@@ -124,7 +124,7 @@ class MusicPlayer(ThemedTk):
 		self.songname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='',font=('Arial',30, 'bold'))
 		self.artistname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='',font=('Arial',13))
 		self.albumname=Label(self,bg='grey22',fg='grey88', relief=FLAT, text='',font=('Arial',13))
-		self.discicon=Button(image=self.disc_icon, bg='grey30', relief=FLAT)
+		self.discicon=Button(image=self.disc_icon, bg='grey30', relief=FLAT, command=self.songdetail)
 		#widget binding
 		self.playlist.bind('<Button-1>', self.playlistclick)	
 		self.playlist.bind('<Double-Button-1>', self.playlistdoubleclick)
@@ -207,6 +207,7 @@ class MusicPlayer(ThemedTk):
 			self.songmins=str(self.songmins).zfill(2)
 			self.songsecs=str(self.songsecs).zfill(2)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
+			
 			try:
 				self.songname.config(text=self.songinfo['TIT2'].text[0])
 				self.artistname.config(text=self.songinfo['TPE1'].text[0])
@@ -226,6 +227,7 @@ class MusicPlayer(ThemedTk):
 			self.songsecs=str(self.songsecs).zfill(2)
 			self.progress_label_2.config(text=str(self.songmins)+':'+str(self.songsecs))
 			self.music_player_scale.config(from_ = 0,to = self.songlength)
+			
 			try:
 				self.songname.config(text=self.song['TITLE'])
 				self.artistname.config(text=self.song['ARTIST'])
@@ -261,7 +263,6 @@ class MusicPlayer(ThemedTk):
 			if self.progress_label_1['text']=='-1:59':
 				self.progress_label_1.config(text='00:00')
 			self.currentsongpos=int(self.currenttime)/int(self.songlength)
-			print(self.currentsongpos)
 			self.music_player_scale.set(self.currentsongpos)
 
 			time.sleep(1)	
@@ -403,6 +404,17 @@ class MusicPlayer(ThemedTk):
 			#unmute
 			self.VolumeSlider.set(100)
 
+	def songdetail(self):
+		detailwindow=Toplevel()
+		detailwindow.geometry('800x500')
+		detailwindow.config(bg='grey22')
+		detailwindow.title('Metadata')
+
+		try:
+			self.detailbox=Label(detailwindow, bg='grey22', fg='white', text=self.song.pprint())
+			self.detailbox.pack(side=TOP)
+		except:
+			messagebox.showerror(title='Error', message='Failed to read metadata')
 
 	def selectpath(self):
 		path = filedialog.askdirectory()

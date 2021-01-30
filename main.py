@@ -36,6 +36,9 @@ class MusicPlayer(ThemedTk):
 
 	def __init__(self, *args, **kwargs):
 
+		#pre-variable initialization
+		self.versionname='Pytone v1.5b'
+
 		#initialization
 		super(MusicPlayer, self).__init__(theme='equilux')
 		pygame.init()
@@ -48,7 +51,7 @@ class MusicPlayer(ThemedTk):
 
 		#window layout initialization
 		self.resizable(False, False)
-		self.title('Pytone v1.3') #1.3 release
+		self.title(self.versionname) #1.3 release
 		self.configure(background='grey22')
 		self.geometry('1000x600')
 		self.iconbitmap('icon.ico')
@@ -299,7 +302,7 @@ class MusicPlayer(ThemedTk):
 		
 	def play_music(self, *args):
 		mixer.music.play()
-		self.title('Pytone v1.3 - Playing '+self.currentsong)
+		self.title( self.versionname +' - Playing '+self.currentsong)
 		self.check_event()
 
 	def loopshuffletoggle(self):
@@ -320,11 +323,11 @@ class MusicPlayer(ThemedTk):
 	def play_pause(self):
 		if self.play_pause_button['image'] == str(self.pause_icon_active):
 			mixer.music.pause()
-			self.title('Pytone v1.3 - Paused ')
+			self.title(self.versionname + ' - Paused ')
 			self.play_pause_button.config(image=self.play_icon_active)
 		else:
 			mixer.music.unpause()
-			self.title('Pytone v1.3 - Playing '+self.currentsong)
+			self.title(self.versionname+' - Playing '+self.currentsong)
 			self.play_pause_button.config(image=self.pause_icon_active)
 
 	def next_song(self):
@@ -408,6 +411,7 @@ class MusicPlayer(ThemedTk):
 		detailwindow=Toplevel()
 		detailwindow.geometry('800x500')
 		detailwindow.config(bg='grey22')
+		detailwindow.attributes('-alpha', 0.9)
 		detailwindow.title('Metadata')
 
 		try:

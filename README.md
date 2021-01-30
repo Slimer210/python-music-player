@@ -69,6 +69,12 @@ release v1.5
 
 	Music length slider bug fix
 
+release v1.5b
+
+	Transparent window for metadata added
+
+	Minor bug fixes
+
 # Contributors
 
 Slimer210: Main module, GUI

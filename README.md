@@ -1,7 +1,8 @@
-
+**Please note that this project is moved to pytone 2.0 and it's currently building**
 
 Python Music Player
 ===================
+
 
 A music player with better GUI
 

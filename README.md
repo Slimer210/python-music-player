@@ -1,4 +1,4 @@
-**Please note that this project is moved to pytone 2.0 and it's currently building**
+**This project won't continue unless got bug found.**
 
 Python Music Player
 ===================
